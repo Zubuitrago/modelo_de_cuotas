@@ -1,0 +1,82 @@
+/* === ESTILO CORPORATIVO SINTEC-MONDELEZ === */
+
+/* Fondo general */
+[data-testid="stAppViewContainer"] {
+    background-color: #FAF8FC; /* suave morado claro */
+}
+
+/* Sidebar (Sintec) */
+/* Logo Sintec con marco limpio */
+/* Mejora visual del logo de Sintec en el sidebar */
+/* Ajuste visual del logo de Sintec */
+[data-testid="stSidebar"] img[src*="sintec_logo"] {
+    display: block;
+    margin: 10px auto 20px auto;
+    width: 80%;
+    max-width: 220px;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+
+
+
+/* Títulos principales */
+h1 {
+    color: #2E2E2E; /* mantiene título negro */
+}
+h2, h3, .stMarkdown h2, .stMarkdown h3 {
+    color: #0055A5;
+}
+
+/* Subtítulos y encabezados secundarios */
+h4, h5 {
+    color: #4A148C; /* morado Mondelez */
+}
+
+/* Texto y párrafos */
+p {
+    color: #2E2E2E;
+    font-size: 16px;
+}
+
+/* Enlaces y resaltados */
+a, strong {
+    color: #0055A5;
+}
+
+/* Paneles informativos */
+.stAlert {
+    border-left: 5px solid #0055A5;
+}
+
+/* Botones */
+div.stButton > button {
+    background-color: #0055A5;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+}
+
+div.stButton > button:hover {
+    background-color: #4A148C;
+    color: white;
+}
+
+/* Logo Mondelez alineado */
+img[src*="mondelez_logo"] {
+    margin-top: -35px !important;
+}
+
+/* Títulos de secciones */
+.stMarkdown h3 {
+    border-left: 6px solid #0055A5;
+    padding-left: 10px;
+}
+
+/* Notas informativas */
+.stAlert > div {
+    font-size: 15px;
+}
