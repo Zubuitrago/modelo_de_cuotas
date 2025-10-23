@@ -15,7 +15,7 @@ def render():
     # ==============================
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Cumplimiento Cuota", "97%", "+2% vs mes anterior")
+        st.metric("Cumplimiento Cuota", "23%", "-74% vs mes anterior")
     with col2:
         st.metric("Eficiencia Promedio", "85%", "-1.2% vs objetivo")
     with col3:
@@ -47,11 +47,7 @@ def render():
             1128,1137,1127,1128,1127,1127,
             1155,1165,1170,1185,1195,1205
         ],
-        "ruta": [
-            "ruta_1","ruta_1","ruta_1","ruta_1","ruta_1","ruta_1",
-            "ruta_1","ruta_1","ruta_1","ruta_1","ruta_1","ruta_1",
-            "ruta_1","ruta_1","ruta_1","ruta_1","ruta_1","ruta_1"
-        ],
+        "ruta": ["ruta_1"]*18,
         "territorio": ["Norte"]*6 + ["Centro"]*6 + ["Sur"]*6,
         "cedis": ["Mérida","CDMX","Monterrey","Mérida","CDMX","Guadalajara"]*3
     })
@@ -115,12 +111,6 @@ def render():
         line=dict(color="#66BB6A", width=2, dash="dash")
     ))
 
-    objetivo = df_filtrado["cuota"].mean() * 1.02
-    fig.add_shape(type="line", x0=df_filtrado["fecha"].min(), x1=df_filtrado["fecha"].max(),
-                  y0=objetivo, y1=objetivo, line=dict(color="#FFB81C", dash="dot", width=2))
-    fig.add_annotation(text="Objetivo Corporativo", xref="paper", yref="y", x=1.02, y=objetivo,
-                       showarrow=False, font=dict(color="#FFB81C", size=12))
-
     fig.update_layout(
         title="Comportamiento histórico y proyección de cuota",
         xaxis_title="Fecha", yaxis_title="Volumen", height=400,
@@ -130,42 +120,12 @@ def render():
     st.plotly_chart(fig, use_container_width=True)
 
     # ==============================
-    # Boxplot de eficiencia (dinámico)
-    # ==============================
-    st.subheader("🔹 Ajuste por Eficiencia")
-
-    semilla = abs(hash((territorio, cedis, ruta))) % (10**6)
-    np.random.seed(semilla)
-    clusters = ["A", "B", "C", "D"]
-    base_media = 85 if ruta == "Todas" else 80 + (hash(ruta) % 10)
-    data_box = pd.DataFrame({
-        "Cluster": np.repeat(clusters, 40),
-        "Eficiencia": np.concatenate([
-            np.random.normal(base_media - 5, 5, 40),
-            np.random.normal(base_media + 5, 6, 40),
-            np.random.normal(base_media - 10, 7, 40),
-            np.random.normal(base_media, 5, 40)
-        ])
-    })
-
-    fig_box = go.Figure()
-    for c in clusters:
-        vals = data_box[data_box["Cluster"] == c]["Eficiencia"]
-        color = "#7B1FA2" if c == "B" else "#CE93D8"
-        fig_box.add_trace(go.Box(y=vals, name=f"Cluster {c}", marker_color=color, boxmean=True))
-
-    fig_box.update_layout(
-        yaxis_title="Eficiencia (%)", xaxis_title="Cluster", height=400,
-        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)"
-    )
-    st.plotly_chart(fig_box, use_container_width=True)
-
-    # ==============================
-    # Tabla resumen
+    # 📅 Tabla debajo de la gráfica
     # ==============================
     st.subheader("📅 Resumen mensual por ruta")
     df_filtrado["Año"] = df_filtrado["año"]
     df_filtrado["Mes"] = df_filtrado["fecha"].dt.strftime("%B")
+    df_filtrado["factor_cuota_predicho"] = df_filtrado["cuota"]-df_filtrado["forecast"]
     tabla = df_filtrado[["Año", "Mes", "ruta", "forecast", "cuota", "factor_cuota_predicho"]]
     tabla = tabla.rename(columns={
         "ruta": "Ruta",
@@ -174,6 +134,66 @@ def render():
         "factor_cuota_predicho": "Factor Cuota"
     })
     st.dataframe(tabla, use_container_width=True)
+
+    st.markdown("---")
+
+    # ==============================
+    # 🔹 Ajuste por Eficiencia (Cluster fijo, dinámico)
+    # ==============================
+    st.subheader("🔹 Ajuste por Eficiencia")
+
+    # Generar siempre el mismo set de clusters
+    clusters = ["A", "B", "C", "D"]
+    np.random.seed(42)
+    base_media = 85
+    rutas_por_cluster = np.random.randint(15, 40, size=len(clusters))
+
+    data_box = pd.DataFrame({
+        "Cluster": np.repeat(clusters, rutas_por_cluster),
+        "Eficiencia": np.concatenate([
+            np.random.normal(base_media - 8, 7, rutas_por_cluster[0]),
+            np.random.normal(base_media, 5, rutas_por_cluster[1]),
+            np.random.normal(base_media + 5, 6, rutas_por_cluster[2]),
+            np.random.normal(base_media - 3, 5, rutas_por_cluster[3])
+        ])
+    })
+
+    # Calcular métricas
+    total_rutas = len(data_box)
+    ajuste = (data_box["Eficiencia"] >= 85).sum()
+    desajuste = total_rutas - ajuste
+    fuera = (data_box["Eficiencia"] < 70).sum() + (data_box["Eficiencia"] > 95).sum()
+
+    st.markdown(f"""
+    **Resumen de Clusters:**
+    - Total de rutas: `{total_rutas}`
+    - Rutas con ajuste ≥85 %: `{ajuste}`  ({ajuste/total_rutas*100:.1f}%)
+    - Rutas con desajuste <85 %: `{desajuste}`  ({desajuste/total_rutas*100:.1f}%)
+    - Rutas fuera de eficiencia (<70 % o >95 %): `{fuera}`
+    """)
+
+    # Tamaño del gráfico dinámico según cantidad de rutas
+    altura = 350 + (total_rutas // 10) * 10
+
+    # Boxplot con puntos dispersos
+    fig_box = go.Figure()
+    for c in clusters:
+        vals = data_box[data_box["Cluster"] == c]["Eficiencia"]
+        fig_box.add_trace(go.Box(
+            y=vals, name=f"Cluster {c}",
+            boxmean=True,
+            marker_color="#7B1FA2",
+            jitter=0.4,
+            boxpoints="outliers"
+        ))
+
+    fig_box.update_layout(
+        yaxis_title="Eficiencia (%)", xaxis_title="Cluster",
+        height=altura,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)"
+    )
+    st.plotly_chart(fig_box, use_container_width=True)
 
     # ==============================
     # Insight automático
