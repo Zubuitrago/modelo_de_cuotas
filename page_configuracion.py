@@ -2,143 +2,275 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import time
+
 
 def render():
-    st.markdown("## Configuración de Parámetros")
+    st.title("⚙️ Configuración de Parámetros")
+
+    st.markdown("Ajusta la matriz de agresividad y el nivel de cumplimiento esperado para simular resultados.")
     st.markdown("---")
 
-    col_izq, col_der = st.columns([1, 1])
+    # ======================================================
+    # 🟣 DOS COLUMNAS (IZQ MATRIZ / DER GRÁFICO)
+    # ======================================================
+    col_izq, col_der = st.columns([1, 1], gap="large")
 
     # ======================================================
-    # 🟣 COLUMNA IZQUIERDA — MATRIZ EDITABLE + VISUAL
+    # IZQUIERDA — MATRIZ CON ENCABEZADO ABAJO
     # ======================================================
     with col_izq:
         st.subheader("Matriz de Parámetros de Agresividad")
-        st.markdown("**Complejidad ↓ / Momentum →**")
+        st.caption("Digita los valores directamente sobre la matriz (valores entre 0 y 100).")
 
         niveles = ["Baja", "Media", "Alta"]
 
+        # Inicializar con valores por defecto (diagonal: 1, 5, 10)
         if "matriz_agresividad" not in st.session_state:
             st.session_state.matriz_agresividad = pd.DataFrame(
-                [[0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0]],
-                index=niveles, columns=niveles
+                [[1, 0, 0],
+                 [0, 5, 0],
+                 [0, 0, 10]],
+                index=["Baja", "Media", "Alta"],
+                columns=niveles
             )
 
-        st.caption("Digita los valores (0–100) directamente sobre la matriz:")
+        # Obtener DataFrame
+        df = st.session_state.matriz_agresividad.copy()
 
-        # Editor editable (entrada de valores)
-        edited_df = st.data_editor(
-            st.session_state.matriz_agresividad,
-            use_container_width=True,
-            num_rows="fixed",
-            hide_index=False,
-            column_config={
-                "Baja":  st.column_config.NumberColumn("Baja",  min_value=0.0, max_value=100.0, step=1.0, format="%.0f"),
-                "Media": st.column_config.NumberColumn("Media", min_value=0.0, max_value=100.0, step=1.0, format="%.0f"),
-                "Alta":  st.column_config.NumberColumn("Alta",  min_value=0.0, max_value=100.0, step=1.0, format="%.0f"),
-            }
-        )
-
-        st.session_state.matriz_agresividad = edited_df.copy()
-
-        # 🔹 Generar visualización tipo matriz (heatmap dinámico)
-        fig_matrix = go.Figure(
-            data=go.Heatmap(
-                z=edited_df.values,
-                x=edited_df.columns,
-                y=edited_df.index,
-                colorscale="RdPu",
-                showscale=True,
-                zmin=0, zmax=100,
-                text=np.round(edited_df.values, 1),
-                texttemplate="%{text}",
-                textfont={"size":14, "color":"black"}
+        # Configuración de columnas
+        column_config = {}
+        for col in niveles:
+            column_config[col] = st.column_config.NumberColumn(
+                col,
+                min_value=0,
+                max_value=100,
+                step=1,
+                format="%d"
             )
-        )
 
-        fig_matrix.update_layout(
-            title="Visualización de Parámetros",
-            xaxis_title="Momentum",
-            yaxis_title="Complejidad",
-            yaxis=dict(autorange="reversed"),
-            height=400,
-            margin=dict(l=20, r=20, t=40, b=20),
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)"
-        )
+        # Crear contenedor con ejes
+        col_vacio, col_matriz = st.columns([0.05, 1])
+        
+        with col_vacio:
+            st.markdown("""
+                <div style='
+                    writing-mode: vertical-rl;
+                    transform: rotate(180deg);
+                    text-align: center;
+                    font-weight: bold;
+                    margin-top: 52px;
+                    margin-left: 8px;
+                    font-size: 13px;
+                    color: #333;
+                '>
+                    ↑ Complejidad
+                </div>
+            """, unsafe_allow_html=True)
+        
+        with col_matriz:
+            # CSS para invertir la tabla y poner encabezado abajo
+            st.markdown("""
+                <style>
+                /* Invertir el orden visual de la tabla */
+                div[data-testid="stDataFrameResizable"] {
+                    display: flex;
+                    flex-direction: column-reverse;
+                }
+                /* Ajustar el espacio del header cuando está abajo */
+                div[data-testid="stDataFrameResizable"] > div:last-child {
+                    border-top: 2px solid #ddd;
+                    border-bottom: none;
+                }
+                </style>
+            """, unsafe_allow_html=True)
+            
+            # Editor para modificar valores
+            edited_df = st.data_editor(
+                df,
+                hide_index=False,
+                key="matriz_agresividad_editor",
+                use_container_width=True,
+                num_rows="fixed",
+                column_config=column_config,
+                height=150
+            )
 
-        st.plotly_chart(fig_matrix, use_container_width=True)
+        # Actualizar valores en sesión
+        st.session_state.matriz_agresividad = edited_df
 
-# ======================================================
-# 🔵 Columna derecha — GRÁFICA DE CUMPLIMIENTO (slider debajo)
-# ======================================================
+        # Etiqueta del eje horizontal
+        st.markdown("""
+            <div style='
+                text-align: center;
+                font-weight: bold;
+                margin-top: 10px;
+                font-size: 13px;
+                color: #333;
+                margin-left: 20px;
+            '>
+                Momentum →
+            </div>
+        """, unsafe_allow_html=True)
+
+    # ======================================================
+    # DERECHA — GRÁFICO SIN LÍNEAS DE EJES
+    # ======================================================
     with col_der:
         st.subheader("Nivel de cumplimiento de cuotas esperado")
 
-        # Curva tipo campana
-        x = np.linspace(-3, 3, 100)
+        # Obtener nivel de cumplimiento
+        cumplimiento = st.session_state.get("nivel_cumplimiento", 50)
+
+        # Generar curva normal
+        x = np.linspace(-3, 3, 200)
         y = np.exp(-x**2)
-        fig_curva = go.Figure()
 
-        fig_curva.add_trace(go.Scatter(
-            x=x, y=y, mode="lines",
+        fig = go.Figure()
+
+        # Calcular el umbral basado en el cumplimiento
+        umbral = 3 - (cumplimiento / 100) * 6
+
+        # Crear el área bajo la curva (relleno dinámico)
+        x_fill = x[x >= umbral]
+        if len(x_fill) > 0:
+            y_fill = np.exp(-x_fill**2)
+            
+            fig.add_trace(go.Scatter(
+                x=np.concatenate(([umbral], x_fill)),
+                y=np.concatenate(([0], y_fill)),
+                fill="tozeroy",
+                fillcolor="rgba(186, 104, 200, 0.5)",
+                line=dict(color="rgba(186,104,200,0)", width=0),
+                name="Rutas que superan cuota",
+                showlegend=True,
+                hoverinfo='skip'
+            ))
+
+        # Curva principal (distribución completa)
+        fig.add_trace(go.Scatter(
+            x=x, 
+            y=y,
+            mode="lines",
             line=dict(color="#4A148C", width=3),
-            name="Distribución"
+            name="Distribución",
+            showlegend=True,
+            hoverinfo='skip'
         ))
 
-        # Slider control
-        nivel_cumplimiento = st.session_state.get("slider_cumplimiento", 50)
+        # Línea vertical del umbral
+        fig.add_shape(
+            type="line",
+            x0=umbral, x1=umbral,
+            y0=0, y1=1,
+            line=dict(color="rgba(123,31,162,0.6)", width=2, dash="dash")
+        )
 
-        # Área sombreada (mantiene relación)
-        x_fill = x[x > 1]
-        y_fill = np.exp(-x_fill**2)
-        fig_curva.add_trace(go.Scatter(
-            x=np.concatenate(([1], x_fill, [x_fill[-1]])),
-            y=np.concatenate(([0], y_fill, [0])),
-            fill="toself",
-            fillcolor="rgba(186, 104, 200, 0.5)",
-            line=dict(color="rgba(186, 104, 200, 0)"),
-            name="Rutas que superan cuota"
-        ))
-
-        fig_curva.add_annotation(
-            x=2, y=0.6,
-            text=f"<b>{nivel_cumplimiento}%</b>",
+        # Etiqueta de porcentaje
+        fig.add_annotation(
+            x=umbral - 0.4, 
+            y=0.75,
+            text=f"<b>{cumplimiento}%</b>",
             showarrow=False,
             font=dict(size=20, color="white"),
             bgcolor="#7B1FA2",
-            borderpad=6
+            borderpad=8,
+            bordercolor="#7B1FA2",
+            borderwidth=2,
+            opacity=0.95
         )
 
-        fig_curva.update_layout(
-            title="Nivel de cumplimiento de cuotas esperado",
+        # Configuración del gráfico SIN LÍNEAS DE EJES
+        fig.update_layout(
             xaxis_title="Nivel de cumplimiento",
             yaxis_title="Densidad",
-            height=400,
-            margin=dict(l=40, r=40, t=50, b=40),
+            height=280,
+            margin=dict(l=50, r=20, t=10, b=50),
             plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)"
+            paper_bgcolor="rgba(0,0,0,0)",
+            showlegend=True,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.0,
+                xanchor="center",
+                x=0.5,
+                font=dict(size=11),
+                bgcolor="rgba(255,255,255,0.8)"
+            ),
+            xaxis=dict(
+                showgrid=True,
+                gridcolor="rgba(200,200,200,0.3)",
+                showline=False,
+                linewidth=0,
+                mirror=False,
+                zeroline=False,
+                zerolinewidth=0,
+                range=[-3.2, 3.2],
+                tickmode='linear',
+                tick0=-3,
+                dtick=1
+            ),
+            yaxis=dict(
+                showgrid=True,
+                gridcolor="rgba(200,200,200,0.3)",
+                showline=False,
+                linewidth=0,
+                mirror=False,
+                zeroline=False,
+                zerolinewidth=0,
+                range=[0, 1.1]
+            )
         )
 
-        st.plotly_chart(fig_curva, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
-        # Slider debajo de la gráfica 👇
-        nivel_cumplimiento = st.slider(
-            "Selecciona el nivel de cumplimiento (%)",
-            0, 100, int(nivel_cumplimiento),
-            key="slider_cumplimiento"
+        # Slider debajo del gráfico
+        st.markdown("**Selecciona el nivel de cumplimiento (%)**")
+        nuevo_cumplimiento = st.slider(
+            "",
+            min_value=0, 
+            max_value=100, 
+            value=cumplimiento, 
+            step=1,
+            label_visibility="collapsed"
         )
+        
+        # Actualizar el valor en session_state
+        if nuevo_cumplimiento != cumplimiento:
+            st.session_state.nivel_cumplimiento = nuevo_cumplimiento
+            st.rerun()
 
     # ======================================================
-    # 🔘 Botón de simulación de cálculo
+    # BOTÓN FINAL
     # ======================================================
     st.markdown("---")
-    if st.button("Calcular rutas"):
-        with st.spinner("Calculando rutas..."):
-            import time
-            time.sleep(2)
-        st.success("✅ Cálculo completado exitosamente.")
-
-    st.caption("🛈 Esta sección es una representación visual. Los datos reales se integrarán desde las fuentes oficiales.")
+    
+    st.markdown("""
+        <style>
+        div.stButton > button {
+            background-color: #1976D2;
+            color: white;
+            font-weight: 900 !important;
+            font-size: 16px;
+            padding: 12px 32px;
+            border-radius: 8px;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        div.stButton > button:hover {
+            background-color: #1565C0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        div.stButton > button p {
+            font-weight: 900 !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        if st.button("🎯 Calcular Cuota", type="primary", use_container_width=True):
+            with st.spinner("Calculando cuota..."):
+                time.sleep(2)
+            st.success("✅ Cálculo completado correctamente.")

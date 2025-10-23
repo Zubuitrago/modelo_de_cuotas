@@ -80,3 +80,12 @@ img[src*="mondelez_logo"] {
 .stAlert > div {
     font-size: 15px;
 }
+
+/* === Escala de colores corporativa para valores === */
+
+/* Verde (bajo riesgo / agresividad baja) */
+:root {
+    --color-bajo: rgba(67, 160, 71, 0.6);     /* Verde Sintec */
+    --color-medio: rgba(255, 235, 59, 0.6);   /* Amarillo neutro */
+    --color-alto: rgba(122, 26, 138, 0.6);    /* Morado Mondelez */
+}
