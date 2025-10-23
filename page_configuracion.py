@@ -28,9 +28,9 @@ def render():
         # Inicializar con valores por defecto (diagonal: 1, 5, 10)
         if "matriz_agresividad" not in st.session_state:
             st.session_state.matriz_agresividad = pd.DataFrame(
-                [[1, 0, 0],
-                 [0, 5, 0],
-                 [0, 0, 10]],
+                [[10, 7, 5],
+                 [7, 5, 3],
+                 [5, 3, 1]],
                 index=["Baja", "Media", "Alta"],
                 columns=niveles
             )
