@@ -96,7 +96,7 @@ def render():
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=df_filtrado["fecha"], y=real,
+        x=df_filtrado["fecha"], y=real[:-3],
         mode="lines", name="Real",
         line=dict(color="#4A148C", width=2)
     ))
